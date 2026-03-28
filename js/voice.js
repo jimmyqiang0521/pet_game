@@ -6,6 +6,8 @@ const Voice = {
     useIFLYTEK: false,
     iflytekWs: null,
     audioChunks: [],
+    isFirstInteraction: true,
+    audioContext: null,
 
     voiceSettings: {
         rate: 0.9,
@@ -260,7 +262,37 @@ const Voice = {
             this.useIFLYTEK = true;
         }
         
+        this.setupMobileAudioUnlock();
+        
         return true;
+    },
+
+    setupMobileAudioUnlock() {
+        const unlockAudio = () => {
+            if (this.isFirstInteraction) {
+                this.isFirstInteraction = false;
+                
+                try {
+                    this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    
+                    if (this.audioContext.state === 'suspended') {
+                        this.audioContext.resume();
+                    }
+                    
+                    if (this.currentAudio) {
+                        this.currentAudio.play().catch(() => {});
+                    }
+                } catch (e) {
+                    console.log('Audio context not supported');
+                }
+                
+                document.removeEventListener('click', unlockAudio);
+                document.removeEventListener('touchstart', unlockAudio);
+            }
+        };
+        
+        document.addEventListener('click', unlockAudio, { once: true });
+        document.addEventListener('touchstart', unlockAudio, { once: true });
     },
 
     hasIFLYTEKCredentials() {
@@ -285,6 +317,11 @@ const Voice = {
     async speak(text) {
         if (!this.enabled) return;
 
+        if (this.isFirstInteraction) {
+            this.setupMobileAudioUnlock();
+            return;
+        }
+
         if (this.useIFLYTEK && this.hasIFLYTEKCredentials()) {
             await this.speakWithIFLYTEK(text);
         } else {
@@ -305,6 +342,13 @@ const Voice = {
             
             return new Promise((resolve, reject) => {
                 this.iflytekWs = new WebSocket(wsUrl);
+                
+                const timeout = setTimeout(() => {
+                    if (this.iflytekWs) {
+                        this.iflytekWs.close();
+                    }
+                    this.speakWithBrowser(text).then(resolve);
+                }, 5000);
                 
                 this.iflytekWs.onopen = () => {
                     const frame = {
@@ -330,6 +374,7 @@ const Voice = {
                 };
                 
                 this.iflytekWs.onmessage = (event) => {
+                    clearTimeout(timeout);
                     const jsonData = JSON.parse(event.data);
                     
                     if (jsonData.code !== 0) {
@@ -344,16 +389,20 @@ const Voice = {
                     
                     if (jsonData.data && jsonData.data.status === 2) {
                         this.playIFLYTEKAudio().then(resolve);
-                        this.iflytekWs.close();
+                        if (this.iflytekWs) {
+                            this.iflytekWs.close();
+                        }
                     }
                 };
                 
                 this.iflytekWs.onerror = (error) => {
+                    clearTimeout(timeout);
                     console.error('讯飞WebSocket错误:', error);
                     this.speakWithBrowser(text).then(resolve);
                 };
                 
                 this.iflytekWs.onclose = () => {
+                    clearTimeout(timeout);
                     this.speaking = false;
                     this.processQueue();
                 };
@@ -383,43 +432,55 @@ const Voice = {
     async playIFLYTEKAudio() {
         if (this.audioChunks.length === 0) return;
         
-        const allAudio = this.audioChunks.join('');
-        const audioData = atob(allAudio);
-        const arrayBuffer = new ArrayBuffer(audioData.length);
-        const view = new Uint8Array(arrayBuffer);
-        
-        for (let i = 0; i < audioData.length; i++) {
-            view[i] = audioData.charCodeAt(i);
-        }
-        
-        const blob = new Blob([arrayBuffer], { type: 'audio/mp3' });
-        const url = URL.createObjectURL(blob);
-        
-        if (this.currentAudio) {
-            this.currentAudio.pause();
-        }
-        
-        this.currentAudio = new Audio(url);
-        this.speaking = true;
-        
-        return new Promise((resolve) => {
-            this.currentAudio.onended = () => {
-                this.speaking = false;
-                URL.revokeObjectURL(url);
-                this.processQueue();
-                resolve();
-            };
+        try {
+            const allAudio = this.audioChunks.join('');
+            const audioData = atob(allAudio);
+            const arrayBuffer = new ArrayBuffer(audioData.length);
+            const view = new Uint8Array(arrayBuffer);
             
-            this.currentAudio.onerror = () => {
-                this.speaking = false;
-                URL.revokeObjectURL(url);
-                resolve();
-            };
+            for (let i = 0; i < audioData.length; i++) {
+                view[i] = audioData.charCodeAt(i);
+            }
             
-            this.currentAudio.play().catch(() => {
+            const blob = new Blob([arrayBuffer], { type: 'audio/mp3' });
+            const url = URL.createObjectURL(blob);
+            
+            if (this.currentAudio) {
+                this.currentAudio.pause();
+            }
+            
+            this.currentAudio = new Audio(url);
+            this.speaking = true;
+            
+            return new Promise((resolve) => {
+                this.currentAudio.onended = () => {
+                    this.speaking = false;
+                    URL.revokeObjectURL(url);
+                    this.processQueue();
+                    resolve();
+                };
+                
+                this.currentAudio.onerror = () => {
+                    this.speaking = false;
+                    URL.revokeObjectURL(url);
+                    resolve();
+                };
+                
+            const playPromise = this.currentAudio.play();
+            if (playPromise !== undefined) {
+                playPromise.catch(error => {
+                    if (error.name === 'NotAllowedError') {
+                        console.log('需要用户交互才能播放音频');
+                    }
+                    resolve();
+                });
+            } else {
                 resolve();
+            }
             });
-        });
+        } catch (error) {
+            console.error('播放音频失败:', error);
+        }
     },
 
     async speakWithBrowser(text) {
@@ -452,7 +513,16 @@ const Voice = {
                 resolve();
             };
             this.speaking = true;
-            speechSynthesis.speak(utterance);
+            
+            const speakPromise = speechSynthesis.speak(utterance);
+            if (speakPromise && speakPromise.catch) {
+                speakPromise.catch(() => {
+                    this.speaking = false;
+                    resolve();
+                });
+            } else {
+                setTimeout(resolve, 100);
+            }
         });
     },
 
