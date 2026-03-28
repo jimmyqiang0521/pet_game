@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>洗澡语音测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        button {
+            margin: 5px;
+            padding: 10px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .log {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #f5f5f5;
+            border-radius: 4px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>洗澡语音测试</h1>
+    
+    <div class="test-section">
+        <h2>测试洗澡语音</h2>
+        <button onclick="testBathVoice('cat')">测试猫咪洗澡</button>
+        <button onclick="testBathVoice('dog')">测试狗狗洗澡</button>
+        <button onclick="testBathVoice('rabbit')">测试兔子洗澡</button>
+    </div>
+    
+    <div class="test-section">
+        <h2>测试消息获取</h2>
+        <button onclick="testMessageRetrieval('cat')">测试猫咪消息</button>
+        <button onclick="testMessageRetrieval('dog')">测试狗狗消息</button>
+        <button onclick="testMessageRetrieval('rabbit')">测试兔子消息</button>
+    </div>
+    
+    <div class="log" id="log"></div>
+    
+    <script src="js/voice.js"></script>
+    <script>
+        function log(message) {
+            const logElement = document.getElementById('log');
+            logElement.textContent += new Date().toLocaleTimeString() + ': ' + message + '\n';
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+        
+        function testBathVoice(petType) {
+            log(`=== 测试 ${petType} 洗澡语音 ===`);
+            
+            // 测试获取洗澡消息
+            const message = Voice.getRandomMessage(petType, 'clean');
+            log(`获取到的消息: ${message}`);
+            
+            if (message) {
+                // 测试文件名生成
+                const filename = Voice.getFilename(message);
+                log(`生成的文件名: ${filename}`);
+                log(`音频路径: audio/${filename}`);
+                
+                // 测试语音播放
+                log('开始播放语音...');
+                Voice.speak(message).then(() => {
+                    log('语音播放完成');
+                });
+            } else {
+                log('错误：未获取到洗澡消息');
+            }
+        }
+        
+        function testMessageRetrieval(petType) {
+            log(`=== 测试 ${petType} 消息获取 ===`);
+            
+            // 测试所有操作的消息
+            const actions = ['feed', 'play', 'clean', 'sleep'];
+            actions.forEach(action => {
+                const message = Voice.getRandomMessage(petType, action);
+                log(`${action}: ${message || '无消息'}`);
+            });
+        }
+        
+        // 页面加载完成后测试
+        window.onload = function() {
+            log('洗澡语音测试页面已加载');
+            log('Voice对象是否存在: ' + (typeof Voice !== 'undefined'));
+            if (Voice) {
+                log('语音系统初始化: ' + Voice.init());
+                log('使用本地音频: ' + Voice.useLocalAudio);
+            }
+        };
+    </script>
+</body>
+</html>
