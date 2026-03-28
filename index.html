@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>我的电子宠物</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/animations.css">
+    <link rel="stylesheet" href="css/pets.css">
+</head>
+<body>
+    <div id="app">
+        <!-- 首页/选宠页面 -->
+        <div id="page-home" class="page active">
+            <div class="home-container">
+                <div class="logo-area">
+                    <h1 class="title">我的电子宠物</h1>
+                    <p class="subtitle">选择你的小伙伴吧！</p>
+                </div>
+                
+                <div class="pet-selection">
+                    <div class="pet-card" data-pet="cat">
+                        <div class="pet-preview cat-preview">
+                            <div class="pet-body"></div>
+                        </div>
+                        <div class="pet-info">
+                            <h3>小猫咪</h3>
+                            <p>温柔可爱，喜欢撒娇</p>
+                        </div>
+                    </div>
+                    
+                    <div class="pet-card" data-pet="dog">
+                        <div class="pet-preview dog-preview">
+                            <div class="pet-body"></div>
+                        </div>
+                        <div class="pet-info">
+                            <h3>小狗狗</h3>
+                            <p>活泼开朗，忠诚伙伴</p>
+                        </div>
+                    </div>
+                    
+                    <div class="pet-card" data-pet="rabbit">
+                        <div class="pet-preview rabbit-preview">
+                            <div class="pet-body"></div>
+                        </div>
+                        <div class="pet-info">
+                            <h3>小兔子</h3>
+                            <p>软萌可爱，蹦蹦跳跳</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 主界面 -->
+        <div id="page-main" class="page">
+            <div class="main-container">
+                <!-- 顶部信息栏 -->
+                <div class="top-bar">
+                    <div class="coins">
+                        <span class="coin-icon">💰</span>
+                        <span id="coins-display">100</span>
+                    </div>
+                    <div class="day-counter">
+                        <span>养成第</span>
+                        <span id="days-display">1</span>
+                        <span>天</span>
+                    </div>
+                </div>
+
+                <!-- 宠物展示区 -->
+                <div class="pet-area">
+                    <div id="pet-container" class="pet-container">
+                        <div class="pet-sprite"></div>
+                        <div class="pet-status-emoji"></div>
+                    </div>
+                    <div class="pet-name-display">
+                        <span id="pet-name">小可爱</span>
+                    </div>
+                </div>
+
+                <!-- 状态栏 -->
+                <div class="status-bars">
+                    <div class="status-item">
+                        <div class="status-icon">🍖</div>
+                        <div class="status-bar-container">
+                            <div class="status-label">饱食度</div>
+                            <div class="status-bar">
+                                <div id="hunger-bar" class="status-fill hunger-fill"></div>
+                            </div>
+                            <div id="hunger-value" class="status-value">100</div>
+                        </div>
+                    </div>
+                    
+                    <div class="status-item">
+                        <div class="status-icon">😊</div>
+                        <div class="status-bar-container">
+                            <div class="status-label">心情值</div>
+                            <div class="status-bar">
+                                <div id="mood-bar" class="status-fill mood-fill"></div>
+                            </div>
+                            <div id="mood-value" class="status-value">100</div>
+                        </div>
+                    </div>
+                    
+                    <div class="status-item">
+                        <div class="status-icon">🛁</div>
+                        <div class="status-bar-container">
+                            <div class="status-label">清洁度</div>
+                            <div class="status-bar">
+                                <div id="clean-bar" class="status-fill clean-fill"></div>
+                            </div>
+                            <div id="clean-value" class="status-value">100</div>
+                        </div>
+                    </div>
+                    
+                    <div class="status-item">
+                        <div class="status-icon">💤</div>
+                        <div class="status-bar-container">
+                            <div class="status-label">体力值</div>
+                            <div class="status-bar">
+                                <div id="energy-bar" class="status-fill energy-fill"></div>
+                            </div>
+                            <div id="energy-value" class="status-value">100</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 操作按钮 -->
+                <div class="action-buttons">
+                    <button class="action-btn feed-btn" data-action="feed">
+                        <span class="btn-icon">🍖</span>
+                        <span class="btn-text">喂食</span>
+                    </button>
+                    <button class="action-btn play-btn" data-action="play">
+                        <span class="btn-icon">🎾</span>
+                        <span class="btn-text">玩耍</span>
+                    </button>
+                    <button class="action-btn clean-btn" data-action="clean">
+                        <span class="btn-icon">🛁</span>
+                        <span class="btn-text">洗澡</span>
+                    </button>
+                    <button class="action-btn sleep-btn" data-action="sleep">
+                        <span class="btn-icon">💤</span>
+                        <span class="btn-text">睡觉</span>
+                    </button>
+                </div>
+
+                <!-- 语音开关 -->
+                <div class="voice-control">
+                    <button id="voice-toggle" class="voice-btn" title="语音开关">
+                        <span class="voice-icon">🔊</span>
+                    </button>
+                </div>
+
+                <!-- 底部导航 -->
+                <div class="bottom-nav">
+                    <button class="nav-btn" data-page="main">
+                        <span class="nav-icon">🏠</span>
+                        <span class="nav-text">主页</span>
+                    </button>
+                    <button class="nav-btn" data-page="shop">
+                        <span class="nav-icon">🏪</span>
+                        <span class="nav-text">商店</span>
+                    </button>
+                    <button class="nav-btn" data-page="achievements">
+                        <span class="nav-icon">🏆</span>
+                        <span class="nav-text">成就</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 商店页面 -->
+        <div id="page-shop" class="page">
+            <div class="shop-container">
+                <div class="page-header">
+                    <button class="back-btn" data-page="main">← 返回</button>
+                    <h2>宠物商店</h2>
+                    <div class="coins">
+                        <span class="coin-icon">💰</span>
+                        <span id="shop-coins-display">100</span>
+                    </div>
+                </div>
+                
+                <div class="shop-categories">
+                    <button class="category-btn active" data-category="food">食物</button>
+                    <button class="category-btn" data-category="toys">玩具</button>
+                    <button class="category-btn" data-category="decor">装饰</button>
+                </div>
+                
+                <div class="shop-items" id="shop-items">
+                    <!-- 商品项会通过JS动态生成 -->
+                </div>
+            </div>
+        </div>
+
+        <!-- 成就页面 -->
+        <div id="page-achievements" class="page">
+            <div class="achievements-container">
+                <div class="page-header">
+                    <button class="back-btn" data-page="main">← 返回</button>
+                    <h2>成就记录</h2>
+                </div>
+                
+                <div class="stats-summary">
+                    <div class="stat-card">
+                        <div class="stat-icon">📅</div>
+                        <div class="stat-info">
+                            <div class="stat-value" id="total-days">1</div>
+                            <div class="stat-label">养成天数</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🍖</div>
+                        <div class="stat-info">
+                            <div class="stat-value" id="total-feeds">0</div>
+                            <div class="stat-label">喂食次数</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🎮</div>
+                        <div class="stat-info">
+                            <div class="stat-value" id="total-plays">0</div>
+                            <div class="stat-label">玩耍次数</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="achievements-list" id="achievements-list">
+                    <!-- 成就会通过JS动态生成 -->
+                </div>
+            </div>
+        </div>
+
+        <!-- 消息提示 -->
+        <div id="message-toast" class="message-toast"></div>
+        
+        <!-- 确认弹窗 -->
+        <div id="confirm-modal" class="modal">
+            <div class="modal-content">
+                <h3 id="modal-title">提示</h3>
+                <p id="modal-message"></p>
+                <div class="modal-buttons">
+                    <button class="modal-btn cancel-btn">取消</button>
+                    <button class="modal-btn confirm-btn">确定</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 设置弹窗 -->
+        <div id="settings-modal" class="modal">
+            <div class="modal-content settings-content">
+                <h3>🔊 语音设置</h3>
+                <div class="settings-section">
+                    <p class="settings-desc">配置讯飞语音API可以获得更可爱的儿童音色！</p>
+                    <div class="setting-item">
+                        <label>AppID:</label>
+                        <input type="text" id="iflytek-app-id" placeholder="输入你的AppID">
+                    </div>
+                    <div class="setting-item">
+                        <label>API Key:</label>
+                        <input type="text" id="iflytek-api-key" placeholder="输入你的API Key">
+                    </div>
+                    <div class="setting-item">
+                        <label>API Secret:</label>
+                        <input type="text" id="iflytek-api-secret" placeholder="输入你的API Secret">
+                    </div>
+                    <p class="settings-tip">免费申请：讯飞开放平台 → 语音合成</p>
+                </div>
+                <div class="modal-buttons">
+                    <button class="modal-btn cancel-btn" id="settings-cancel">取消</button>
+                    <button class="modal-btn confirm-btn" id="settings-save">保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/utils.js"></script>
+    <script src="js/storage.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <script src="js/voice.js"></script>
+    <script src="js/pet.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
