@@ -3,15 +3,13 @@ const Voice = {
     speaking: false,
     queue: [],
     currentAudio: null,
-    useIFLYTEK: false,
-    iflytekWs: null,
-    audioChunks: [],
     isFirstInteraction: true,
     audioContext: null,
+    audioCache: {},
 
     voiceSettings: {
-        rate: 0.9,
-        pitch: 1.5,
+        rate: 0.85,
+        pitch: 1.6,
         volume: 1.0
     },
 
@@ -257,14 +255,21 @@ const Voice = {
 
     init() {
         this.loadSettings();
-        
-        if (this.enabled && this.hasIFLYTEKCredentials()) {
-            this.useIFLYTEK = true;
-        }
-        
         this.setupMobileAudioUnlock();
-        
+        this.preloadVoices();
         return true;
+    },
+
+    preloadVoices() {
+        if ('speechSynthesis' in window) {
+            const loadVoices = () => {
+                speechSynthesis.getVoices();
+            };
+            loadVoices();
+            if (speechSynthesis.onvoiceschanged !== undefined) {
+                speechSynthesis.onvoiceschanged = loadVoices;
+            }
+        }
     },
 
     setupMobileAudioUnlock() {
@@ -278,252 +283,19 @@ const Voice = {
                     if (this.audioContext.state === 'suspended') {
                         this.audioContext.resume();
                     }
-                    
-                    if (this.currentAudio) {
-                        this.currentAudio.play().catch(() => {});
-                    }
                 } catch (e) {
                     console.log('Audio context not supported');
                 }
                 
                 document.removeEventListener('click', unlockAudio);
                 document.removeEventListener('touchstart', unlockAudio);
+                document.removeEventListener('touchend', unlockAudio);
             }
         };
         
         document.addEventListener('click', unlockAudio, { once: true });
         document.addEventListener('touchstart', unlockAudio, { once: true });
-    },
-
-    hasIFLYTEKCredentials() {
-        const settings = Storage.getSettings();
-        return settings.iflytekAppId && settings.iflytekApiKey && settings.iflytekApiSecret;
-    },
-
-    setIFLYTEKCredentials(appId, apiKey, apiSecret) {
-        const settings = Storage.getSettings();
-        settings.iflytekAppId = appId;
-        settings.iflytekApiKey = apiKey;
-        settings.iflytekApiSecret = apiSecret;
-        Storage.saveSettings(settings);
-        
-        this.useIFLYTEK = !!(appId && apiKey && apiSecret);
-        
-        if (this.useIFLYTEK) {
-            console.log('讯飞语音配置成功');
-        }
-    },
-
-    async speak(text) {
-        if (!this.enabled) return;
-
-        if (this.isFirstInteraction) {
-            this.setupMobileAudioUnlock();
-            return;
-        }
-
-        if (this.useIFLYTEK && this.hasIFLYTEKCredentials()) {
-            await this.speakWithIFLYTEK(text);
-        } else {
-            await this.speakWithBrowser(text);
-        }
-    },
-
-    async speakWithIFLYTEK(text) {
-        try {
-            if (this.iflytekWs) {
-                this.iflytekWs.close();
-            }
-
-            const settings = Storage.getSettings();
-            const wsUrl = this.createIFLYTEKUrl(settings.iflytekApiKey, settings.iflytekApiSecret);
-            
-            this.audioChunks = [];
-            
-            return new Promise((resolve, reject) => {
-                this.iflytekWs = new WebSocket(wsUrl);
-                
-                const timeout = setTimeout(() => {
-                    if (this.iflytekWs) {
-                        this.iflytekWs.close();
-                    }
-                    this.speakWithBrowser(text).then(resolve);
-                }, 5000);
-                
-                this.iflytekWs.onopen = () => {
-                    const frame = {
-                        common: {
-                            app_id: settings.iflytekAppId
-                        },
-                        business: {
-                            aue: 'lame',
-                            auf: 'audio/L16;rate=16000',
-                            vcn: 'aisbabychan',
-                            speed: 45,
-                            volume: 50,
-                            pitch: 55,
-                            tte: 'UTF8'
-                        },
-                        data: {
-                            text: this.encodeText(text),
-                            status: 2
-                        }
-                    };
-                    
-                    this.iflytekWs.send(JSON.stringify(frame));
-                };
-                
-                this.iflytekWs.onmessage = (event) => {
-                    clearTimeout(timeout);
-                    const jsonData = JSON.parse(event.data);
-                    
-                    if (jsonData.code !== 0) {
-                        console.error('讯飞语音合成错误:', jsonData);
-                        this.speakWithBrowser(text).then(resolve);
-                        return;
-                    }
-                    
-                    if (jsonData.data && jsonData.data.audio) {
-                        this.audioChunks.push(jsonData.data.audio);
-                    }
-                    
-                    if (jsonData.data && jsonData.data.status === 2) {
-                        this.playIFLYTEKAudio().then(resolve);
-                        if (this.iflytekWs) {
-                            this.iflytekWs.close();
-                        }
-                    }
-                };
-                
-                this.iflytekWs.onerror = (error) => {
-                    clearTimeout(timeout);
-                    console.error('讯飞WebSocket错误:', error);
-                    this.speakWithBrowser(text).then(resolve);
-                };
-                
-                this.iflytekWs.onclose = () => {
-                    clearTimeout(timeout);
-                    this.speaking = false;
-                    this.processQueue();
-                };
-            });
-        } catch (error) {
-            console.error('讯飞语音合成失败:', error);
-            await this.speakWithBrowser(text);
-        }
-    },
-
-    createIFLYTEKUrl(apiKey, apiSecret) {
-        const host = 'ws-api.xfyun.cn';
-        const date = new Date().toUTCString();
-        const signatureOrigin = `host: ${host}\ndate: ${date}\nGET /v2/tts HTTP/1.1`;
-        const signatureSha = CryptoJS.HmacSHA256(signatureOrigin, apiSecret);
-        const signature = CryptoJS.enc.Base64.stringify(signatureSha);
-        const authorizationOrigin = `api_key="${apiKey}", algorithm="hmac-sha256", headers="host date request-line", signature="${signature}"`;
-        const authorization = CryptoJS.enc.Base64.stringify(CryptoJS.enc.Utf8.parse(authorizationOrigin));
-        
-        return `wss://tts-api.xfyun.cn/v2/tts?authorization=${encodeURIComponent(authorization)}&date=${encodeURIComponent(date)}&host=${host}`;
-    },
-
-    encodeText(text) {
-        return CryptoJS.enc.Base64.stringify(CryptoJS.enc.Utf8.parse(text));
-    },
-
-    async playIFLYTEKAudio() {
-        if (this.audioChunks.length === 0) return;
-        
-        try {
-            const allAudio = this.audioChunks.join('');
-            const audioData = atob(allAudio);
-            const arrayBuffer = new ArrayBuffer(audioData.length);
-            const view = new Uint8Array(arrayBuffer);
-            
-            for (let i = 0; i < audioData.length; i++) {
-                view[i] = audioData.charCodeAt(i);
-            }
-            
-            const blob = new Blob([arrayBuffer], { type: 'audio/mp3' });
-            const url = URL.createObjectURL(blob);
-            
-            if (this.currentAudio) {
-                this.currentAudio.pause();
-            }
-            
-            this.currentAudio = new Audio(url);
-            this.speaking = true;
-            
-            return new Promise((resolve) => {
-                this.currentAudio.onended = () => {
-                    this.speaking = false;
-                    URL.revokeObjectURL(url);
-                    this.processQueue();
-                    resolve();
-                };
-                
-                this.currentAudio.onerror = () => {
-                    this.speaking = false;
-                    URL.revokeObjectURL(url);
-                    resolve();
-                };
-                
-            const playPromise = this.currentAudio.play();
-            if (playPromise !== undefined) {
-                playPromise.catch(error => {
-                    if (error.name === 'NotAllowedError') {
-                        console.log('需要用户交互才能播放音频');
-                    }
-                    resolve();
-                });
-            } else {
-                resolve();
-            }
-            });
-        } catch (error) {
-            console.error('播放音频失败:', error);
-        }
-    },
-
-    async speakWithBrowser(text) {
-        if (!('speechSynthesis' in window)) {
-            return;
-        }
-
-        speechSynthesis.cancel();
-
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = 'zh-CN';
-        utterance.rate = this.voiceSettings.rate;
-        utterance.pitch = this.voiceSettings.pitch;
-        utterance.volume = this.voiceSettings.volume;
-
-        const voices = speechSynthesis.getVoices();
-        const zhVoice = voices.find(v => v.lang.includes('zh'));
-        if (zhVoice) {
-            utterance.voice = zhVoice;
-        }
-
-        return new Promise((resolve) => {
-            utterance.onend = () => {
-                this.speaking = false;
-                this.processQueue();
-                resolve();
-            };
-            utterance.onerror = () => {
-                this.speaking = false;
-                resolve();
-            };
-            this.speaking = true;
-            
-            const speakPromise = speechSynthesis.speak(utterance);
-            if (speakPromise && speakPromise.catch) {
-                speakPromise.catch(() => {
-                    this.speaking = false;
-                    resolve();
-                });
-            } else {
-                setTimeout(resolve, 100);
-            }
-        });
+        document.addEventListener('touchend', unlockAudio, { once: true });
     },
 
     loadSettings() {
@@ -548,14 +320,112 @@ const Voice = {
         return this.enabled;
     },
 
+    async speak(text) {
+        if (!this.enabled) return;
+
+        if (this.isFirstInteraction) {
+            this.setupMobileAudioUnlock();
+            await this.unlockMobileAudio();
+            return;
+        }
+
+        await this.speakWithBrowser(text);
+    },
+
+    async unlockMobileAudio() {
+        return new Promise((resolve) => {
+            try {
+                this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                
+                if (this.audioContext.state === 'suspended') {
+                    this.audioContext.resume().then(() => {
+                        this.isFirstInteraction = false;
+                        resolve();
+                    });
+                } else {
+                    this.isFirstInteraction = false;
+                    resolve();
+                }
+            } catch (e) {
+                this.isFirstInteraction = false;
+                resolve();
+            }
+            
+            setTimeout(resolve, 100);
+        });
+    },
+
+    async speakWithBrowser(text) {
+        if (!('speechSynthesis' in window)) {
+            console.log('浏览器不支持语音合成');
+            return;
+        }
+
+        speechSynthesis.cancel();
+
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'zh-CN';
+        utterance.rate = this.voiceSettings.rate;
+        utterance.pitch = this.voiceSettings.pitch;
+        utterance.volume = this.voiceSettings.volume;
+
+        let selectedVoice = null;
+        const voices = speechSynthesis.getVoices();
+        
+        const zhFemaleVoices = voices.filter(v => 
+            (v.lang.includes('zh') || v.lang.includes('CN')) && 
+            (v.name.toLowerCase().includes('female') || 
+             v.name.includes('女') ||
+             v.name.includes('xiaoxiao') ||
+             v.name.includes('yaoyao') ||
+             v.name.includes('huihui') ||
+             v.name.includes('kangkang'))
+        );
+        
+        if (zhFemaleVoices.length > 0) {
+            selectedVoice = zhFemaleVoices[0];
+        } else {
+            const zhVoices = voices.filter(v => v.lang.includes('zh') || v.lang.includes('CN'));
+            if (zhVoices.length > 0) {
+                selectedVoice = zhVoices[0];
+            }
+        }
+        
+        if (selectedVoice) {
+            utterance.voice = selectedVoice;
+        }
+
+        this.speaking = true;
+
+        return new Promise((resolve) => {
+            utterance.onend = () => {
+                this.speaking = false;
+                this.processQueue();
+                resolve();
+            };
+            
+            utterance.onerror = (event) => {
+                console.error('语音合成错误:', event);
+                this.speaking = false;
+                resolve();
+            };
+
+            try {
+                speechSynthesis.speak(utterance);
+            } catch (e) {
+                console.error('语音播放失败:', e);
+                this.speaking = false;
+                resolve();
+            }
+
+            setTimeout(resolve, 100);
+        });
+    },
+
     stop() {
         if (this.currentAudio) {
             this.currentAudio.pause();
             this.currentAudio = null;
-        }
-        if (this.iflytekWs) {
-            this.iflytekWs.close();
-            this.iflytekWs = null;
         }
         if ('speechSynthesis' in window) {
             speechSynthesis.cancel();
@@ -567,7 +437,7 @@ const Voice = {
     processQueue() {
         if (this.queue.length > 0) {
             const next = this.queue.shift();
-            setTimeout(() => this.speak(next), 100);
+            setTimeout(() => this.speak(next), 150);
         }
     },
 
@@ -598,7 +468,7 @@ const Voice = {
     speakWelcome(petType) {
         const message = this.getRandomMessage(petType, 'welcome');
         if (message) {
-            setTimeout(() => this.speak(message), 500);
+            setTimeout(() => this.speak(message), 800);
         }
         return message;
     },
@@ -606,7 +476,7 @@ const Voice = {
     speakLogin(petType) {
         const message = this.getRandomMessage(petType, 'login');
         if (message) {
-            setTimeout(() => this.speak(message), 300);
+            setTimeout(() => this.speak(message), 500);
         }
         return message;
     },
@@ -645,8 +515,8 @@ const Voice = {
         return this.enabled;
     },
 
-    isIFLYTEKEnabled() {
-        return this.useIFLYTEK && this.hasIFLYTEKCredentials();
+    isSpeaking() {
+        return this.speaking;
     }
 };
 

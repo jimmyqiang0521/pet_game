@@ -93,15 +93,10 @@ class App {
             voiceToggle.addEventListener('click', () => this.toggleVoice());
         }
 
-        const settingsSaveBtn = document.getElementById('settings-save');
-        const settingsCancelBtn = document.getElementById('settings-cancel');
+        const settingsCloseBtn = document.getElementById('settings-close');
         
-        if (settingsSaveBtn) {
-            settingsSaveBtn.addEventListener('click', () => this.saveVoiceSettings());
-        }
-        
-        if (settingsCancelBtn) {
-            settingsCancelBtn.addEventListener('click', () => this.closeSettings());
+        if (settingsCloseBtn) {
+            settingsCloseBtn.addEventListener('click', () => this.closeSettings());
         }
 
         const voiceBtn = document.getElementById('voice-toggle');
@@ -530,39 +525,12 @@ class App {
 
     openVoiceSettings() {
         const modal = document.getElementById('settings-modal');
-        const appIdInput = document.getElementById('iflytek-app-id');
-        const apiKeyInput = document.getElementById('iflytek-api-key');
-        const apiSecretInput = document.getElementById('iflytek-api-secret');
-        const settings = Storage.getSettings();
-        
-        appIdInput.value = settings.iflytekAppId || '';
-        apiKeyInput.value = settings.iflytekApiKey || '';
-        apiSecretInput.value = settings.iflytekApiSecret || '';
-        
         modal.classList.add('show');
     }
 
     closeSettings() {
         const modal = document.getElementById('settings-modal');
         modal.classList.remove('show');
-    }
-
-    saveVoiceSettings() {
-        const appId = document.getElementById('iflytek-app-id').value.trim();
-        const apiKey = document.getElementById('iflytek-api-key').value.trim();
-        const apiSecret = document.getElementById('iflytek-api-secret').value.trim();
-        
-        if (appId && apiKey && apiSecret) {
-            Voice.setIFLYTEKCredentials(appId, apiKey, apiSecret);
-            this.closeSettings();
-            this.showMessage('讯飞语音配置成功！');
-            
-            setTimeout(() => {
-                Voice.speakCustom('你好呀～我是你的小宠物！');
-            }, 500);
-        } else {
-            this.showMessage('请输入完整的API信息');
-        }
     }
 }
 
