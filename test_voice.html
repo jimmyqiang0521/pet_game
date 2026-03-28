@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>语音测试 - 好饿啊</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 500px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            text-align: center;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .text-display {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 30px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .controls {
+            margin-bottom: 30px;
+        }
+
+        .control-group {
+            margin-bottom: 20px;
+        }
+
+        .control-group label {
+            display: block;
+            margin-bottom: 10px;
+            color: #333;
+            font-weight: bold;
+        }
+
+        .control-group input[type="range"] {
+            width: 100%;
+            height: 8px;
+            border-radius: 4px;
+            background: linear-gradient(to right, #f093fb, #f5576c);
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .control-group input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: white;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+            cursor: pointer;
+            border: 3px solid #f5576c;
+        }
+
+        .value-display {
+            background: #f0f0f0;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 15px 30px;
+            border: none;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-play {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+
+        .btn-play:hover {
+            transform: scale(1.05);
+            box-shadow: 0 10px 30px rgba(245, 87, 108, 0.4);
+        }
+
+        .btn-reset {
+            background: #e0e0e0;
+            color: #333;
+        }
+
+        .btn-reset:hover {
+            background: #d0d0d0;
+        }
+
+        .info {
+            margin-top: 30px;
+            padding: 15px;
+            background: #f9f9f9;
+            border-radius: 10px;
+            text-align: left;
+        }
+
+        .info h3 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+
+        .info ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .info li {
+            padding: 5px 0;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .info li::before {
+            content: "• ";
+            color: #f5576c;
+        }
+
+        .voice-selector {
+            margin-top: 20px;
+        }
+
+        .voice-selector select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #f5576c;
+            border-radius: 10px;
+            font-size: 14px;
+            outline: none;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎤 语音测试页面</h1>
+        <p class="subtitle">测试 3-5岁可爱小女孩的声音效果</p>
+
+        <div class="text-display">
+            好饿啊
+        </div>
+
+        <div class="controls">
+            <div class="control-group">
+                <label>
+                    语速：<span id="rate-value" class="value-display">0.65</span>
+                </label>
+                <input type="range" id="rate-slider" min="0.3" max="1.2" step="0.05" value="0.65">
+            </div>
+
+            <div class="control-group">
+                <label>
+                    音调：<span id="pitch-value" class="value-display">1.9</span>
+                </label>
+                <input type="range" id="pitch-slider" min="0.5" max="2.5" step="0.1" value="1.9">
+            </div>
+
+            <div class="voice-selector">
+                <select id="voice-select">
+                    <option value="">正在加载语音列表...</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="buttons">
+            <button class="btn btn-play" id="play-btn">
+                🔊 播放语音
+            </button>
+            <button class="btn btn-reset" id="reset-btn">
+                ↺ 恢复默认
+            </button>
+        </div>
+
+        <div class="info">
+            <h3>📝 使用说明</h3>
+            <ul>
+                <li>调整语速和音调滑块</li>
+                <li>选择一个喜欢的语音</li>
+                <li>点击"播放语音"按钮试听</li>
+                <li>找到满意的效果后记下参数</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        const rateSlider = document.getElementById('rate-slider');
+        const pitchSlider = document.getElementById('pitch-slider');
+        const rateValue = document.getElementById('rate-value');
+        const pitchValue = document.getElementById('pitch-value');
+        const playBtn = document.getElementById('play-btn');
+        const resetBtn = document.getElementById('reset-btn');
+        const voiceSelect = document.getElementById('voice-select');
+
+        let voices = [];
+        let selectedVoice = null;
+
+        function loadVoices() {
+            voices = speechSynthesis.getVoices();
+            
+            const priorityList = [
+                'xiaoxiao', '晓晓', 'yaoyao', '瑶瑶', 'xiaoyou', '晓悠',
+                'xiao', '小', 'baby', '宝宝', 'child', '儿童', 'girl', '女孩',
+                'huihui', '慧慧', 'xiaoyan', '小燕',
+                'female', '女', '女声'
+            ];
+
+            voiceSelect.innerHTML = '';
+
+            const sortedVoices = [...voices].sort((a, b) => {
+                const aMatch = priorityList.findIndex(p => 
+                    a.name.toLowerCase().includes(p.toLowerCase())
+                );
+                const bMatch = priorityList.findIndex(p => 
+                    b.name.toLowerCase().includes(p.toLowerCase())
+                );
+                
+                if (aMatch !== -1 && bMatch !== -1) return aMatch - bMatch;
+                if (aMatch !== -1) return -1;
+                if (bMatch !== -1) return 1;
+                return 0;
+            });
+
+            sortedVoices.filter(v => v.lang.includes('zh') || v.lang.includes('CN'))
+                .forEach((voice, index) => {
+                    const option = document.createElement('option');
+                    option.value = voices.indexOf(voice);
+                    option.textContent = `${voice.name} (${voice.lang})`;
+                    voiceSelect.appendChild(option);
+                });
+
+            if (voiceSelect.options.length === 0) {
+                voiceSelect.innerHTML = '<option value="">暂无可用中文语音</option>';
+            }
+        }
+
+        function speak(text) {
+            speechSynthesis.cancel();
+
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'zh-CN';
+            utterance.rate = parseFloat(rateSlider.value);
+            utterance.pitch = parseFloat(pitchSlider.value);
+            utterance.volume = 1.0;
+
+            const voiceIndex = voiceSelect.value;
+            if (voiceIndex !== '' && voices[voiceIndex]) {
+                utterance.voice = voices[voiceIndex];
+            }
+
+            speechSynthesis.speak(utterance);
+        }
+
+        rateSlider.addEventListener('input', (e) => {
+            rateValue.textContent = parseFloat(e.target.value).toFixed(2);
+        });
+
+        pitchSlider.addEventListener('input', (e) => {
+            pitchValue.textContent = parseFloat(e.target.value).toFixed(1);
+        });
+
+        playBtn.addEventListener('click', () => {
+            speak('好饿啊');
+        });
+
+        resetBtn.addEventListener('click', () => {
+            rateSlider.value = 0.65;
+            pitchSlider.value = 1.9;
+            rateValue.textContent = '0.65';
+            pitchValue.textContent = '1.9';
+        });
+
+        if (speechSynthesis.onvoiceschanged !== undefined) {
+            speechSynthesis.onvoiceschanged = loadVoices;
+        }
+        loadVoices();
+
+        document.body.addEventListener('click', () => {
+            if (speechSynthesis.state === 'suspended') {
+                speechSynthesis.resume();
+            }
+        }, { once: true });
+    </script>
+</body>
+</html>

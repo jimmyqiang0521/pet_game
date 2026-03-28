@@ -103,6 +103,59 @@ class App {
         if (voiceBtn) {
             voiceBtn.addEventListener('dblclick', () => this.openVoiceSettings());
         }
+
+        this.setupVoiceSettingsListeners();
+    }
+
+    setupVoiceSettingsListeners() {
+        const rateSlider = document.getElementById('rate-slider');
+        const pitchSlider = document.getElementById('pitch-slider');
+        const testBtn = document.getElementById('test-voice-btn');
+        const resetBtn = document.getElementById('reset-voice-btn');
+
+        if (rateSlider) {
+            rateSlider.addEventListener('input', (e) => {
+                const value = parseFloat(e.target.value);
+                document.getElementById('rate-value').textContent = value.toFixed(2);
+                Voice.voiceSettings.rate = value;
+                Voice.saveSettings();
+            });
+        }
+
+        if (pitchSlider) {
+            pitchSlider.addEventListener('input', (e) => {
+                const value = parseFloat(e.target.value);
+                document.getElementById('pitch-value').textContent = value.toFixed(1);
+                Voice.voiceSettings.pitch = value;
+                Voice.saveSettings();
+            });
+        }
+
+        if (testBtn) {
+            testBtn.addEventListener('click', () => {
+                Voice.speakCustom('主人你好呀～我是你的小宠物！我们一起玩吧！');
+            });
+        }
+
+        if (resetBtn) {
+            resetBtn.addEventListener('click', () => {
+                Voice.voiceSettings.rate = 0.7;
+                Voice.voiceSettings.pitch = 2.0;
+                Voice.saveSettings();
+                
+                if (rateSlider) {
+                    rateSlider.value = 0.7;
+                    document.getElementById('rate-value').textContent = '0.70';
+                }
+                
+                if (pitchSlider) {
+                    pitchSlider.value = 2.0;
+                    document.getElementById('pitch-value').textContent = '2.0';
+                }
+                
+                this.showMessage('已恢复默认设置！');
+            });
+        }
     }
 
     selectPet(e) {
@@ -526,6 +579,62 @@ class App {
     openVoiceSettings() {
         const modal = document.getElementById('settings-modal');
         modal.classList.add('show');
+        
+        const rateSlider = document.getElementById('rate-slider');
+        const pitchSlider = document.getElementById('pitch-slider');
+        
+        if (rateSlider) {
+            rateSlider.value = Voice.voiceSettings.rate;
+            document.getElementById('rate-value').textContent = Voice.voiceSettings.rate.toFixed(2);
+        }
+        
+        if (pitchSlider) {
+            pitchSlider.value = Voice.voiceSettings.pitch;
+            document.getElementById('pitch-value').textContent = Voice.voiceSettings.pitch.toFixed(1);
+        }
+        
+        this.renderVoiceList();
+    }
+
+    renderVoiceList() {
+        const voiceListEl = document.getElementById('voice-list');
+        if (!voiceListEl) return;
+        
+        const voices = Voice.listAllVoices();
+        
+        if (voices.length === 0) {
+            voiceListEl.innerHTML = '<div class="voice-item">正在加载语音列表...</div>';
+            
+            setTimeout(() => {
+                const voices2 = Voice.listAllVoices();
+                if (voices2.length > 0) {
+                    this.renderVoiceList();
+                }
+            }, 1000);
+            return;
+        }
+        
+        voiceListEl.innerHTML = voices.map(voice => `
+            <div class="voice-item" data-index="${voice.index}">
+                ${voice.name} (${voice.lang})
+            </div>
+        `).join('');
+        
+        voiceListEl.querySelectorAll('.voice-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                const index = parseInt(e.currentTarget.dataset.index);
+                const voice = voices[index];
+                if (voice) {
+                    Voice.selectedVoiceIndex = index;
+                    Voice.saveSettings();
+                    
+                    voiceListEl.querySelectorAll('.voice-item').forEach(i => i.classList.remove('selected'));
+                    e.currentTarget.classList.add('selected');
+                    
+                    this.showMessage(`已选择：${voice.name}`);
+                }
+            });
+        });
     }
 
     closeSettings() {

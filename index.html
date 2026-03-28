@@ -257,8 +257,33 @@
                     <p class="settings-desc">建议使用Chrome或Safari浏览器以获得最佳体验。</p>
                     <p class="settings-tip">💡 首次使用时请先点击页面任意位置解锁音频</p>
                 </div>
+                
+                <div class="voice-settings-section">
+                    <h4>🎵 语音参数调节</h4>
+                    
+                    <div class="slider-container">
+                        <label for="rate-slider">语速：<span id="rate-value">0.65</span></label>
+                        <input type="range" id="rate-slider" min="0.4" max="1.2" step="0.05" value="0.65">
+                    </div>
+                    
+                    <div class="slider-container">
+                        <label for="pitch-slider">音调：<span id="pitch-value">1.9</span></label>
+                        <input type="range" id="pitch-slider" min="0.8" max="2.5" step="0.1" value="1.9">
+                    </div>
+                    
+                    <div class="test-buttons">
+                        <button id="test-voice-btn" class="test-btn">🔊 测试语音</button>
+                        <button id="reset-voice-btn" class="test-btn reset">↺ 恢复默认</button>
+                    </div>
+                    
+                    <div id="voice-list-section" class="voice-list-section">
+                        <h5>可用语音列表：</h5>
+                        <div id="voice-list" class="voice-list"></div>
+                    </div>
+                </div>
+                
                 <div class="modal-buttons">
-                    <button class="modal-btn confirm-btn" id="settings-close">知道了</button>
+                    <button class="modal-btn confirm-btn" id="settings-close">确定</button>
                 </div>
             </div>
         </div>

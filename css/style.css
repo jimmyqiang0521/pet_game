@@ -832,3 +832,114 @@ body {
         width: 280px;
     }
 }
+
+/* 语音设置面板样式 */
+.voice-settings-section {
+    margin-top: 20px;
+    padding-top: 15px;
+    border-top: 1px solid #f0f0f0;
+}
+
+.voice-settings-section h4 {
+    font-size: 16px;
+    color: var(--text-dark);
+    margin-bottom: 15px;
+}
+
+.slider-container {
+    margin-bottom: 20px;
+    text-align: left;
+}
+
+.slider-container label {
+    display: block;
+    font-size: 14px;
+    color: var(--text-dark);
+    margin-bottom: 8px;
+}
+
+.slider-container input[type="range"] {
+    width: 100%;
+    height: 8px;
+    border-radius: 4px;
+    background: linear-gradient(to right, var(--primary-pink), var(--primary-blue));
+    outline: none;
+    -webkit-appearance: none;
+}
+
+.slider-container input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: white;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+    cursor: pointer;
+    border: 3px solid var(--primary-pink);
+}
+
+.test-buttons {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.test-btn {
+    flex: 1;
+    padding: 10px 15px;
+    border: none;
+    border-radius: var(--border-radius-small);
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: bold;
+    transition: transform 0.2s ease, background 0.2s ease;
+    background: var(--primary-pink);
+    color: white;
+}
+
+.test-btn:hover {
+    transform: scale(1.05);
+}
+
+.test-btn.reset {
+    background: var(--text-light);
+}
+
+.voice-list-section {
+    margin-top: 20px;
+    text-align: left;
+}
+
+.voice-list-section h5 {
+    font-size: 14px;
+    color: var(--text-dark);
+    margin-bottom: 10px;
+}
+
+.voice-list {
+    max-height: 200px;
+    overflow-y: auto;
+    background: #f9f9f9;
+    border-radius: var(--border-radius-small);
+    padding: 10px;
+}
+
+.voice-item {
+    padding: 8px 10px;
+    margin-bottom: 5px;
+    background: white;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.voice-item:hover {
+    background: var(--primary-pink);
+    color: white;
+}
+
+.voice-item.selected {
+    background: var(--primary-blue);
+    color: white;
+}

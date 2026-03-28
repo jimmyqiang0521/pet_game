@@ -5,11 +5,13 @@ const Voice = {
     currentAudio: null,
     isFirstInteraction: true,
     audioContext: null,
-    audioCache: {},
+    voiceList: [],
+    testMode: false,
+    useLocalAudio: true,
 
     voiceSettings: {
-        rate: 0.85,
-        pitch: 1.6,
+        rate: 0.65,
+        pitch: 1.9,
         volume: 1.0
     },
 
@@ -260,11 +262,26 @@ const Voice = {
         return true;
     },
 
+    getFilename(text) {
+        let hash = 0;
+        for (let i = 0; i < text.length; i++) {
+            const char = text.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash = hash & hash;
+        }
+        return Math.abs(hash).toString(16) + '.mp3';
+    },
+
     preloadVoices() {
         if ('speechSynthesis' in window) {
             const loadVoices = () => {
-                speechSynthesis.getVoices();
+                this.voiceList = speechSynthesis.getVoices();
+                console.log('可用语音数量:', this.voiceList.length);
+                this.voiceList.forEach((v, i) => {
+                    console.log(`语音 ${i + 1}:`, v.name, v.lang);
+                });
             };
+            
             loadVoices();
             if (speechSynthesis.onvoiceschanged !== undefined) {
                 speechSynthesis.onvoiceschanged = loadVoices;
@@ -301,11 +318,25 @@ const Voice = {
     loadSettings() {
         const settings = Storage.getSettings();
         this.enabled = settings.voiceEnabled !== false;
+        if (settings.voiceSettings) {
+            this.voiceSettings = { ...this.voiceSettings, ...settings.voiceSettings };
+        }
+        if (settings.selectedVoiceIndex !== undefined) {
+            this.selectedVoiceIndex = settings.selectedVoiceIndex;
+        }
+        if (settings.useLocalAudio !== undefined) {
+            this.useLocalAudio = settings.useLocalAudio;
+        }
     },
 
     saveSettings() {
         const settings = Storage.getSettings();
         settings.voiceEnabled = this.enabled;
+        settings.voiceSettings = this.voiceSettings;
+        if (this.selectedVoiceIndex !== undefined) {
+            settings.selectedVoiceIndex = this.selectedVoiceIndex;
+        }
+        settings.useLocalAudio = this.useLocalAudio;
         Storage.saveSettings(settings);
     },
 
@@ -325,34 +356,98 @@ const Voice = {
 
         if (this.isFirstInteraction) {
             this.setupMobileAudioUnlock();
-            await this.unlockMobileAudio();
             return;
         }
 
-        await this.speakWithBrowser(text);
+        if (this.useLocalAudio) {
+            await this.speakWithLocalFile(text);
+        } else {
+            await this.speakWithBrowser(text);
+        }
     },
 
-    async unlockMobileAudio() {
+    async speakWithLocalFile(text) {
+        const filename = this.getFilename(text);
+        const audioPath = `audio/${filename}`;
+        
+        console.log('尝试播放本地音频:', audioPath);
+        
         return new Promise((resolve) => {
-            try {
-                this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                
-                if (this.audioContext.state === 'suspended') {
-                    this.audioContext.resume().then(() => {
-                        this.isFirstInteraction = false;
-                        resolve();
-                    });
-                } else {
-                    this.isFirstInteraction = false;
-                    resolve();
-                }
-            } catch (e) {
-                this.isFirstInteraction = false;
-                resolve();
+            if (this.currentAudio) {
+                this.currentAudio.pause();
+                this.currentAudio = null;
             }
-            
-            setTimeout(resolve, 100);
+
+            const audio = new Audio(audioPath);
+            this.currentAudio = audio;
+            this.speaking = true;
+
+            audio.oncanplaythrough = () => {
+                audio.play().catch((e) => {
+                    console.log('本地音频播放失败，回退到Web Speech API:', e);
+                    this.speaking = false;
+                    this.speakWithBrowser(text).then(resolve);
+                });
+            };
+
+            audio.onended = () => {
+                console.log('本地音频播放完成');
+                this.speaking = false;
+                this.currentAudio = null;
+                this.processQueue();
+                resolve();
+            };
+
+            audio.onerror = (e) => {
+                console.log('本地音频加载失败，回退到Web Speech API:', e);
+                this.speaking = false;
+                this.currentAudio = null;
+                this.speakWithBrowser(text).then(resolve);
+            };
+
+            audio.load();
         });
+    },
+
+    selectBestVoice() {
+        if (!('speechSynthesis' in window)) {
+            return null;
+        }
+
+        const voices = speechSynthesis.getVoices();
+        if (voices.length === 0) {
+            return null;
+        }
+
+        if (this.selectedVoiceIndex !== undefined && voices[this.selectedVoiceIndex]) {
+            console.log('使用用户选择的语音:', voices[this.selectedVoiceIndex].name);
+            return voices[this.selectedVoiceIndex];
+        }
+
+        const priorityList = [
+            'xiaoxiao', '晓晓', 'yaoyao', '瑶瑶', 'xiaoyou', '晓悠',
+            'xiao', '小', 'baby', '宝宝', 'child', '儿童', 'girl', '女孩',
+            'huihui', '慧慧', 'xiaoyan', '小燕',
+            'female', '女', '女声'
+        ];
+
+        for (const keyword of priorityList) {
+            const foundVoice = voices.find(v => 
+                (v.lang.includes('zh') || v.lang.includes('CN')) && 
+                v.name.toLowerCase().includes(keyword.toLowerCase())
+            );
+            if (foundVoice) {
+                console.log('找到语音:', foundVoice.name);
+                return foundVoice;
+            }
+        }
+
+        const zhVoices = voices.filter(v => v.lang.includes('zh') || v.lang.includes('CN'));
+        if (zhVoices.length > 0) {
+            return zhVoices[0];
+        }
+
+        return null;
     },
 
     async speakWithBrowser(text) {
@@ -369,36 +464,23 @@ const Voice = {
         utterance.pitch = this.voiceSettings.pitch;
         utterance.volume = this.voiceSettings.volume;
 
-        let selectedVoice = null;
-        const voices = speechSynthesis.getVoices();
-        
-        const zhFemaleVoices = voices.filter(v => 
-            (v.lang.includes('zh') || v.lang.includes('CN')) && 
-            (v.name.toLowerCase().includes('female') || 
-             v.name.includes('女') ||
-             v.name.includes('xiaoxiao') ||
-             v.name.includes('yaoyao') ||
-             v.name.includes('huihui') ||
-             v.name.includes('kangkang'))
-        );
-        
-        if (zhFemaleVoices.length > 0) {
-            selectedVoice = zhFemaleVoices[0];
-        } else {
-            const zhVoices = voices.filter(v => v.lang.includes('zh') || v.lang.includes('CN'));
-            if (zhVoices.length > 0) {
-                selectedVoice = zhVoices[0];
-            }
-        }
-        
+        const selectedVoice = this.selectBestVoice();
         if (selectedVoice) {
             utterance.voice = selectedVoice;
+            console.log('使用语音:', selectedVoice.name);
+        } else {
+            console.log('未找到合适语音，使用默认');
         }
 
         this.speaking = true;
 
         return new Promise((resolve) => {
+            utterance.onstart = () => {
+                console.log('开始播放:', text);
+            };
+
             utterance.onend = () => {
+                console.log('播放完成');
                 this.speaking = false;
                 this.processQueue();
                 resolve();
@@ -418,7 +500,7 @@ const Voice = {
                 resolve();
             }
 
-            setTimeout(resolve, 100);
+            setTimeout(resolve, 15000);
         });
     },
 
@@ -437,7 +519,7 @@ const Voice = {
     processQueue() {
         if (this.queue.length > 0) {
             const next = this.queue.shift();
-            setTimeout(() => this.speak(next), 150);
+            setTimeout(() => this.speak(next), 200);
         }
     },
 
@@ -468,7 +550,7 @@ const Voice = {
     speakWelcome(petType) {
         const message = this.getRandomMessage(petType, 'welcome');
         if (message) {
-            setTimeout(() => this.speak(message), 800);
+            setTimeout(() => this.speak(message), 1000);
         }
         return message;
     },
@@ -476,7 +558,7 @@ const Voice = {
     speakLogin(petType) {
         const message = this.getRandomMessage(petType, 'login');
         if (message) {
-            setTimeout(() => this.speak(message), 500);
+            setTimeout(() => this.speak(message), 600);
         }
         return message;
     },
@@ -517,6 +599,33 @@ const Voice = {
 
     isSpeaking() {
         return this.speaking;
+    },
+
+    testVoice(rate, pitch, text = '主人你好呀～我是你的小宠物！') {
+        const oldRate = this.voiceSettings.rate;
+        const oldPitch = this.voiceSettings.pitch;
+        
+        this.voiceSettings.rate = rate;
+        this.voiceSettings.pitch = pitch;
+        
+        this.speak(text);
+        
+        setTimeout(() => {
+            this.voiceSettings.rate = oldRate;
+            this.voiceSettings.pitch = oldPitch;
+        }, 10000);
+    },
+
+    listAllVoices() {
+        if (!('speechSynthesis' in window)) {
+            return [];
+        }
+        return speechSynthesis.getVoices().map((v, i) => ({
+            index: i,
+            name: v.name,
+            lang: v.lang,
+            voiceURI: v.voiceURI
+        }));
     }
 };
 
